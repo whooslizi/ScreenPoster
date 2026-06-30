@@ -15,7 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,8 +62,8 @@ fun HomeScreen(
                     IconButton(onClick = { /* TODO History */ }) {
                         Icon(Icons.Default.History, contentDescription = "History")
                     }
-                    IconButton(onClick = { /* TODO Selection mode */ }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Selection mode")
+                    IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 }
             )
