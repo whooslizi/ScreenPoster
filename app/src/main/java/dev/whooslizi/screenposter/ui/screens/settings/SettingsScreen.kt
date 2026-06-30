@@ -1,9 +1,11 @@
 package dev.whooslizi.screenposter.ui.screens.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,39 +61,42 @@ fun SettingsScreen(
                     modifier = Modifier.padding(16.dp)
                 )
                 
-                // Interval Dropdown
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    val currentLabel = intervalOptions.find { it.second == settings?.intervalMinutes }?.first ?: "Unknown"
-                    OutlinedTextField(
-                        value = currentLabel,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Changing interval") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        intervalOptions.forEach { (label, value) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    viewModel.updateInterval(value)
-                                    expanded = false
+                val currentLabel = intervalOptions.find { it.second == settings?.intervalMinutes }?.first ?: "Unknown"
+
+                ListItem(
+                    modifier = Modifier.clickable { expanded = true },
+                    headlineContent = { Text("Changing interval") },
+                    supportingContent = { Text(currentLabel) }
+                )
+
+                if (expanded) {
+                    AlertDialog(
+                        onDismissRequest = { expanded = false },
+                        title = { Text("Select Interval") },
+                        text = {
+                            Column {
+                                intervalOptions.forEach { (label, value) ->
+                                    ListItem(
+                                        modifier = Modifier.clickable {
+                                            viewModel.updateInterval(value)
+                                            expanded = false
+                                        },
+                                        headlineContent = { Text(label) },
+                                        trailingContent = {
+                                            if (value == settings?.intervalMinutes) {
+                                                Icon(Icons.Default.Check, contentDescription = "Selected")
+                                            }
+                                        }
+                                    )
                                 }
-                            )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { expanded = false }) {
+                                Text("Cancel")
+                            }
                         }
-                    }
+                    )
                 }
                 
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
@@ -105,6 +110,7 @@ fun SettingsScreen(
 
                 // Random / Sequential
                 ListItem(
+                    modifier = Modifier.clickable { viewModel.setRandomMode(false) },
                     headlineContent = { Text("Sequential Mode") },
                     supportingContent = { Text("Wallpapers play in order") },
                     trailingContent = {
@@ -116,6 +122,7 @@ fun SettingsScreen(
                 )
 
                 ListItem(
+                    modifier = Modifier.clickable { viewModel.setRandomMode(true) },
                     headlineContent = { Text("Random / Shuffle Mode") },
                     supportingContent = { Text("Wallpapers play randomly") },
                     trailingContent = {
@@ -128,6 +135,10 @@ fun SettingsScreen(
 
                 if (settings?.randomMode == true) {
                     ListItem(
+                        modifier = Modifier.clickable { 
+                            val current = settings?.noRepeatShuffle == true
+                            viewModel.setNoRepeatShuffle(!current) 
+                        },
                         headlineContent = { Text("No-repeat shuffle") },
                         supportingContent = { Text("Never repeat until every wallpaper has been used") },
                         trailingContent = {
