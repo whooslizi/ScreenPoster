@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,8 +23,17 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
+    val workInfos by viewModel.workInfos.collectAsState(initial = emptyList())
     
     var expanded by remember { mutableStateOf(false) }
+    var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60000L)
+            currentTime = System.currentTimeMillis()
+        }
+    }
 
     val intervalOptions = listOf(
         "15 minutes" to 15,
@@ -68,6 +78,21 @@ fun SettingsScreen(
                     headlineContent = { Text("Changing interval") },
                     supportingContent = { Text(currentLabel) }
                 )
+                
+                val workInfo = workInfos.firstOrNull()
+                if (workInfo != null && workInfo.state == androidx.work.WorkInfo.State.ENQUEUED) {
+                    val nextRun = workInfo.nextScheduleTimeMillis
+                    val diff = nextRun - currentTime
+                    if (diff > 0) {
+                        val minutes = diff / 60000L
+                        Text(
+                            text = "Next wallpaper change in ~$minutes minute(s)",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                }
 
                 if (expanded) {
                     AlertDialog(

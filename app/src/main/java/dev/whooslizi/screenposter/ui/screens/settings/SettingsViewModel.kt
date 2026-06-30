@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dev.whooslizi.screenposter.data.local.entity.SettingsEntity
 import dev.whooslizi.screenposter.data.repository.WallpaperRepository
@@ -31,6 +32,9 @@ class SettingsViewModel @Inject constructor(
     val settings: StateFlow<SettingsEntity?> = repository.getSettingsFlow()
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
+    val workInfos: kotlinx.coroutines.flow.Flow<List<WorkInfo>> = 
+        WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(WORK_NAME)
+
     fun updateInterval(intervalMinutes: Int) {
         viewModelScope.launch {
             val current = repository.getSettings()
@@ -50,8 +54,8 @@ class SettingsViewModel @Inject constructor(
                     workRequest
                 )
             } else {
-                // -1 = Every Unlock
-                // -2 = On Device Boot
+                // -1 = Every Unlock (handled by UnlockReceiver)
+                // -2 = On Device Boot (handled by UnlockReceiver)
                 // Cancel any periodic work
                 workManager.cancelUniqueWork(WORK_NAME)
             }
