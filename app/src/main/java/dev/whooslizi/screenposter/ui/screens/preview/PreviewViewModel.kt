@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.whooslizi.screenposter.data.local.entity.WallpaperEntity
 import dev.whooslizi.screenposter.data.repository.WallpaperRepository
+import dev.whooslizi.screenposter.util.WallpaperHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PreviewViewModel @Inject constructor(
     private val repository: WallpaperRepository,
+    private val wallpaperHelper: WallpaperHelper,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -31,7 +33,12 @@ class PreviewViewModel @Inject constructor(
     }
 
     fun setWallpaper(target: Int) {
-        // target: 1 for Home, 2 for Lock, 3 for Both
-        // This should be handled by a helper class or WorkManager, but triggered here
+        val currentWallpaper = _wallpaper.value ?: return
+        val uriStr = currentWallpaper.editedUri ?: currentWallpaper.uri
+
+        viewModelScope.launch {
+            wallpaperHelper.setWallpaper(uriStr, target)
+        }
     }
 }
+
