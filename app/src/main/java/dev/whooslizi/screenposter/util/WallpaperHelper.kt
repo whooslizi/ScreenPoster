@@ -36,12 +36,7 @@ class WallpaperHelper @Inject constructor(
                         wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
                     }
                     TARGET_LOCK -> {
-                        if (wallpaperManager.isLockscreenLiveWallpaperEnabled) {
-                            wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
-                        } else {
-                            // Fallback for devices that don't support separate lock screen
-                            wallpaperManager.setBitmap(bitmap)
-                        }
+                        wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
                     }
                     TARGET_BOTH -> {
                         wallpaperManager.setBitmap(bitmap)
