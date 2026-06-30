@@ -1,5 +1,6 @@
 package dev.whooslizi.screenposter.ui.screens.album
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +24,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -40,11 +43,22 @@ fun AlbumScreen(
 ) {
     val album by viewModel.album.collectAsState()
     val wallpapers by viewModel.wallpapers.collectAsState()
+    val context = LocalContext.current
     
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
+            uris.forEach { uri ->
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
             val stringUris = uris.map { it.toString() }
             viewModel.addImages(stringUris)
         }
@@ -72,19 +86,19 @@ fun AlbumScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    IconButton(onClick = { /* TODO Set Wallpaper */ }) {
+                    IconButton(onClick = { Toast.makeText(context, "Set Wallpaper coming soon", Toast.LENGTH_SHORT).show() }) {
                         Icon(Icons.Default.Wallpaper, contentDescription = "Set Wallpaper")
                     }
-                    IconButton(onClick = { /* TODO Edit */ }) {
+                    IconButton(onClick = { Toast.makeText(context, "Edit coming soon", Toast.LENGTH_SHORT).show() }) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit")
                     }
-                    IconButton(onClick = { /* TODO Share */ }) {
+                    IconButton(onClick = { Toast.makeText(context, "Share coming soon", Toast.LENGTH_SHORT).show() }) {
                         Icon(Icons.Default.Share, contentDescription = "Share")
                     }
-                    IconButton(onClick = { /* TODO Favorite */ }) {
+                    IconButton(onClick = { Toast.makeText(context, "Favorite coming soon", Toast.LENGTH_SHORT).show() }) {
                         Icon(Icons.Default.Favorite, contentDescription = "Favorite")
                     }
-                    IconButton(onClick = { /* TODO Delete */ }) {
+                    IconButton(onClick = { Toast.makeText(context, "Delete coming soon", Toast.LENGTH_SHORT).show() }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete")
                     }
                 }
