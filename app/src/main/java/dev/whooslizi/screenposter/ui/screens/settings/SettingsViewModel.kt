@@ -1,6 +1,8 @@
 package dev.whooslizi.screenposter.ui.screens.settings
 
+import android.app.AlarmManager
 import android.content.Context
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -41,10 +43,22 @@ class SettingsViewModel @Inject constructor(
     private val _isBatteryOptimized = MutableStateFlow(!BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context))
     val isBatteryOptimized: StateFlow<Boolean> = _isBatteryOptimized
 
+    private val _hasExactAlarmPermission = MutableStateFlow(checkExactAlarmPermission())
+    val hasExactAlarmPermission: StateFlow<Boolean> = _hasExactAlarmPermission
+
     val isChineseOem: Boolean = BatteryOptimizationHelper.isChineseOem()
 
-    fun refreshBatteryOptimizationStatus() {
+    fun refreshPermissionsStatus() {
         _isBatteryOptimized.value = !BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+        _hasExactAlarmPermission.value = checkExactAlarmPermission()
+    }
+
+    private fun checkExactAlarmPermission(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            return alarmManager.canScheduleExactAlarms()
+        }
+        return true // Always true on older Android versions
     }
 
     fun requestBatteryOptimizationExemption() {
@@ -74,7 +88,6 @@ class SettingsViewModel @Inject constructor(
                     workRequest
                 )
 
-                // Also schedule alarm clock alarm (primary, reliable on all OEMs)
                 AlarmScheduler.scheduleNextAlarm(context, intervalMinutes)
             } else {
                 // -1 = Every Unlock (handled by UnlockReceiver)
