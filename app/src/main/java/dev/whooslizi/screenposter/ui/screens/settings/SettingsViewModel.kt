@@ -10,9 +10,11 @@ import androidx.work.WorkManager
 import dev.whooslizi.screenposter.data.local.entity.SettingsEntity
 import dev.whooslizi.screenposter.data.repository.WallpaperRepository
 import dev.whooslizi.screenposter.util.AlarmScheduler
+import dev.whooslizi.screenposter.util.BatteryOptimizationHelper
 import dev.whooslizi.screenposter.worker.WallpaperWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -36,6 +38,23 @@ class SettingsViewModel @Inject constructor(
     val workInfos: kotlinx.coroutines.flow.Flow<List<WorkInfo>> = 
         WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(WORK_NAME)
 
+    private val _isBatteryOptimized = MutableStateFlow(!BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context))
+    val isBatteryOptimized: StateFlow<Boolean> = _isBatteryOptimized
+
+    val isChineseOem: Boolean = BatteryOptimizationHelper.isChineseOem()
+
+    fun refreshBatteryOptimizationStatus() {
+        _isBatteryOptimized.value = !BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+    }
+
+    fun requestBatteryOptimizationExemption() {
+        BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+    }
+
+    fun openAutoStartSettings(): Boolean {
+        return BatteryOptimizationHelper.openAutoStartSettings(context)
+    }
+
     fun updateInterval(intervalMinutes: Int) {
         viewModelScope.launch {
             val current = repository.getSettings()
@@ -55,7 +74,7 @@ class SettingsViewModel @Inject constructor(
                     workRequest
                 )
 
-                // Also schedule exact alarm (primary, reliable on Chinese OEMs)
+                // Also schedule alarm clock alarm (primary, reliable on all OEMs)
                 AlarmScheduler.scheduleNextAlarm(context, intervalMinutes)
             } else {
                 // -1 = Every Unlock (handled by UnlockReceiver)

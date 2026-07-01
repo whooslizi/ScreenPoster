@@ -9,10 +9,15 @@ import dev.whooslizi.screenposter.receiver.WallpaperAlarmReceiver
 import java.util.concurrent.TimeUnit
 
 /**
- * Utility to schedule exact alarms for wallpaper changes.
- * Uses AlarmManager.setExactAndAllowWhileIdle() to reliably fire
- * on Chinese OEM ROMs (Vivo OriginOS, OPPO ColorOS, Xiaomi MIUI, etc.)
- * that aggressively kill background WorkManager tasks.
+ * Utility to schedule alarms for wallpaper changes.
+ * 
+ * Uses AlarmManager.setAlarmClock() which is the ONLY alarm type that
+ * aggressive Chinese OEM ROMs (Vivo OriginOS, OPPO ColorOS, Xiaomi MIUI)
+ * cannot suppress or defer. These OEMs treat alarm clock alarms as user-facing
+ * alarms that must fire on time.
+ * 
+ * setExactAndAllowWhileIdle() is NOT sufficient — it can still be deferred
+ * by up to 15 minutes in Doze and Chinese OEMs may defer it indefinitely.
  */
 object AlarmScheduler {
 
@@ -35,30 +40,13 @@ object AlarmScheduler {
 
         val triggerAtMillis = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(intervalMinutes.toLong())
 
-        // Use setExactAndAllowWhileIdle for reliable execution on all devices
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // On API 31+, check canScheduleExactAlarms
-            if (alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerAtMillis,
-                    pendingIntent
-                )
-            } else {
-                // Fallback to inexact alarm if exact alarm permission not granted
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerAtMillis,
-                    pendingIntent
-                )
-            }
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                triggerAtMillis,
-                pendingIntent
-            )
-        }
+        // Use setAlarmClock — the nuclear option.
+        // This is treated as a user-facing alarm clock, which even Vivo OriginOS
+        // and other aggressive OEMs cannot suppress.
+        // The "show intent" (2nd param) can be null — it just means no UI is shown
+        // when the user taps the alarm icon in the status bar.
+        val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerAtMillis, null)
+        alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
     }
 
     fun cancelAlarm(context: Context) {

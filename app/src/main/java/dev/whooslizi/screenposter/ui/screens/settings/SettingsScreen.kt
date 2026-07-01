@@ -1,18 +1,27 @@
 package dev.whooslizi.screenposter.ui.screens.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -25,9 +34,23 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsState()
     val workInfos by viewModel.workInfos.collectAsState(initial = emptyList())
+    val isBatteryOptimized by viewModel.isBatteryOptimized.collectAsState()
+    val context = LocalContext.current
     
     var expanded by remember { mutableStateOf(false) }
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    
+    // Refresh battery optimization status when returning from system settings
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshBatteryOptimizationStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     
     LaunchedEffect(Unit) {
         while (true) {
@@ -65,6 +88,117 @@ fun SettingsScreen(
                 .padding(paddingValues)
         ) {
             item {
+                // ── Battery Optimization Warning ────────────────
+                // Show prominently if battery optimization is ON (app will be killed)
+                if (isBatteryOptimized) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Background restrictions detected",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Your device may prevent wallpaper changes in the background. Tap below to fix this.",
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { viewModel.requestBatteryOptimizationExemption() },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text("Disable battery optimization")
+                            }
+                            if (viewModel.isChineseOem) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        val opened = viewModel.openAutoStartSettings()
+                                        if (!opened) {
+                                            Toast.makeText(
+                                                context,
+                                                "Could not find auto-start settings. Please enable it manually in your device settings.",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    }
+                                ) {
+                                    Text("Enable auto-start (required for Vivo/Xiaomi/OPPO)")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF4CAF50)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Battery optimization disabled — background changes will work",
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    
+                    // Still show auto-start button for Chinese OEMs even if battery opt is off
+                    if (viewModel.isChineseOem) {
+                        ListItem(
+                            modifier = Modifier.clickable {
+                                val opened = viewModel.openAutoStartSettings()
+                                if (!opened) {
+                                    Toast.makeText(
+                                        context,
+                                        "Could not find auto-start settings. Please enable it manually.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            },
+                            headlineContent = { Text("Auto-start settings") },
+                            supportingContent = { Text("Make sure auto-start is enabled for this app") },
+                            leadingContent = {
+                                Icon(Icons.Default.BatteryAlert, contentDescription = null)
+                            }
+                        )
+                    }
+                }
+
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // ── Automatic Wallpaper Change ──────────────────
                 Text(
                     text = "Automatic Wallpaper Change",
                     fontWeight = FontWeight.Bold,
