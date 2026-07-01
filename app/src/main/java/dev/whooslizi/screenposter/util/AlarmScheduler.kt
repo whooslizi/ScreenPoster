@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import dev.whooslizi.screenposter.receiver.WallpaperAlarmReceiver
 import java.util.concurrent.TimeUnit
 
@@ -40,13 +41,23 @@ object AlarmScheduler {
 
         val triggerAtMillis = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(intervalMinutes.toLong())
 
-        // Use setAlarmClock — the nuclear option.
-        // This is treated as a user-facing alarm clock, which even Vivo OriginOS
-        // and other aggressive OEMs cannot suppress.
-        // The "show intent" (2nd param) can be null — it just means no UI is shown
-        // when the user taps the alarm icon in the status bar.
-        val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerAtMillis, null)
-        alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+        try {
+            // Use setAlarmClock — the nuclear option.
+            // This is treated as a user-facing alarm clock, which even Vivo OriginOS
+            // and other aggressive OEMs cannot suppress.
+            val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerAtMillis, null)
+            alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+            Log.e("AlarmScheduler", "SecurityException: Missing exact alarm permission.")
+            // Fallback to inexact alarm if the exact alarm permission is missing.
+            // This might be delayed, but it won't crash the app.
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pendingIntent
+            )
+        }
     }
 
     fun cancelAlarm(context: Context) {
