@@ -37,8 +37,8 @@ class PreviewViewModel @Inject constructor(
         val uriStr = currentWallpaper.editedUri ?: currentWallpaper.uri
 
         viewModelScope.launch {
-            wallpaperHelper.setWallpaper(uriStr, target)
+            val settings = repository.getSettings()
+            wallpaperHelper.setWallpaper(uriStr, target, settings.homeScreenBlurPercent)
         }
     }
 }
-

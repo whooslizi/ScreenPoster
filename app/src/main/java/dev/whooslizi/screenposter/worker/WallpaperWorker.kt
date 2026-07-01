@@ -22,7 +22,7 @@ class WallpaperWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             val settings = repository.getSettings()
-            if (settings == null || (settings.intervalMinutes < 15 && settings.intervalMinutes > 0)) {
+            if (settings.intervalMinutes < 15 && settings.intervalMinutes > 0) {
                 return@withContext Result.success()
             }
             
@@ -32,8 +32,12 @@ class WallpaperWorker @AssistedInject constructor(
                 // Determine URI to use
                 val uriStr = nextWallpaper.editedUri ?: nextWallpaper.uri
                 
-                // Set wallpaper to both by default for auto change
-                wallpaperHelper.setWallpaper(uriStr, WallpaperHelper.TARGET_BOTH)
+                // Set wallpaper to both by default for auto change, with blur
+                wallpaperHelper.setWallpaper(
+                    uriStr,
+                    WallpaperHelper.TARGET_BOTH,
+                    settings.homeScreenBlurPercent
+                )
                 
                 repository.addHistory(nextWallpaper.id)
             }

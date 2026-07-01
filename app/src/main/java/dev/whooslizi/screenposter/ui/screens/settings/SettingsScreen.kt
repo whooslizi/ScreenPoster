@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,6 +127,48 @@ fun SettingsScreen(
                 
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 
+                // ── Home Screen Blur ────────────────────────────
+                Text(
+                    text = "Home Screen Blur",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(16.dp)
+                )
+
+                val blurPercent = settings?.homeScreenBlurPercent ?: 0
+                var sliderValue by remember(blurPercent) { mutableStateOf(blurPercent.toFloat()) }
+
+                ListItem(
+                    headlineContent = { Text("Blur intensity") },
+                    supportingContent = {
+                        Text(
+                            if (sliderValue.roundToInt() == 0) "Off"
+                            else "${sliderValue.roundToInt()}%"
+                        )
+                    }
+                )
+                
+                Slider(
+                    value = sliderValue,
+                    onValueChange = { sliderValue = it },
+                    onValueChangeFinished = {
+                        viewModel.setHomeScreenBlurPercent(sliderValue.roundToInt())
+                    },
+                    valueRange = 0f..100f,
+                    steps = 19, // 5% increments
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Text(
+                    text = "Blurs the wallpaper on the home screen while keeping the lock screen wallpaper sharp",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // ── Playback Mode ───────────────────────────────
                 Text(
                     text = "Playback Mode",
                     fontWeight = FontWeight.Bold,

@@ -9,6 +9,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dev.whooslizi.screenposter.data.local.entity.SettingsEntity
 import dev.whooslizi.screenposter.data.repository.WallpaperRepository
+import dev.whooslizi.screenposter.util.AlarmScheduler
 import dev.whooslizi.screenposter.worker.WallpaperWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -43,7 +44,7 @@ class SettingsViewModel @Inject constructor(
             val workManager = WorkManager.getInstance(context)
 
             if (intervalMinutes > 0) {
-                // Schedule periodic wallpaper change
+                // Schedule periodic wallpaper change via WorkManager (fallback)
                 val workRequest = PeriodicWorkRequestBuilder<WallpaperWorker>(
                     intervalMinutes.toLong(), TimeUnit.MINUTES
                 ).build()
@@ -53,11 +54,15 @@ class SettingsViewModel @Inject constructor(
                     ExistingPeriodicWorkPolicy.UPDATE,
                     workRequest
                 )
+
+                // Also schedule exact alarm (primary, reliable on Chinese OEMs)
+                AlarmScheduler.scheduleNextAlarm(context, intervalMinutes)
             } else {
                 // -1 = Every Unlock (handled by UnlockReceiver)
                 // -2 = On Device Boot (handled by UnlockReceiver)
-                // Cancel any periodic work
+                // Cancel any periodic work and alarms
                 workManager.cancelUniqueWork(WORK_NAME)
+                AlarmScheduler.cancelAlarm(context)
             }
         }
     }
@@ -81,5 +86,11 @@ class SettingsViewModel @Inject constructor(
             repository.updateSettings(current.copy(noRepeatShuffle = enabled))
         }
     }
-}
 
+    fun setHomeScreenBlurPercent(percent: Int) {
+        viewModelScope.launch {
+            val current = repository.getSettings()
+            repository.updateSettings(current.copy(homeScreenBlurPercent = percent.coerceIn(0, 100)))
+        }
+    }
+}
