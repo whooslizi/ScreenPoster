@@ -1,5 +1,9 @@
 package dev.whooslizi.screenposter.ui.screens.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,17 +39,18 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState()
     val workInfos by viewModel.workInfos.collectAsState(initial = emptyList())
     val isBatteryOptimized by viewModel.isBatteryOptimized.collectAsState()
+    val hasExactAlarmPermission by viewModel.hasExactAlarmPermission.collectAsState()
     val context = LocalContext.current
     
     var expanded by remember { mutableStateOf(false) }
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
     
-    // Refresh battery optimization status when returning from system settings
+    // Refresh permissions/battery optimization status when returning from system settings
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshBatteryOptimizationStatus()
+                viewModel.refreshPermissionsStatus()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -88,13 +93,63 @@ fun SettingsScreen(
                 .padding(paddingValues)
         ) {
             item {
+                // ── Exact Alarm Permission Warning ──────────────
+                if (!hasExactAlarmPermission) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Missing Alarm Permission",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "To change wallpapers automatically on a schedule, you must allow 'Alarms & Reminders' permission.",
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { 
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                                            data = Uri.parse("package:${context.packageName}")
+                                        }
+                                        context.startActivity(intent)
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text("Grant Permission")
+                            }
+                        }
+                    }
+                }
+
                 // ── Battery Optimization Warning ────────────────
                 // Show prominently if battery optimization is ON (app will be killed)
                 if (isBatteryOptimized) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = if (hasExactAlarmPermission) 16.dp else 0.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer
                         )
@@ -147,7 +202,7 @@ fun SettingsScreen(
                             }
                         }
                     }
-                } else {
+                } else if (hasExactAlarmPermission) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -167,7 +222,7 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Battery optimization disabled — background changes will work",
+                                text = "Permissions granted & Battery optimization disabled — background changes will work",
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 style = MaterialTheme.typography.bodyMedium
                             )
