@@ -72,22 +72,22 @@ class SettingsViewModel @Inject constructor(
     fun updateInterval(intervalMinutes: Int) {
         viewModelScope.launch {
             val current = repository.getSettings()
-            repository.updateSettings(current.copy(intervalMinutes = intervalMinutes))
+            
+            val updatedSettings = if (intervalMinutes > 0) {
+                current.copy(
+                    intervalMinutes = intervalMinutes,
+                    lastChangeTimeMillis = System.currentTimeMillis() // Reset timer
+                )
+            } else {
+                current.copy(intervalMinutes = intervalMinutes)
+            }
+            repository.updateSettings(updatedSettings)
 
             val workManager = WorkManager.getInstance(context)
 
             if (intervalMinutes > 0) {
-                // Schedule periodic wallpaper change via WorkManager (fallback)
-                val workRequest = PeriodicWorkRequestBuilder<WallpaperWorker>(
-                    intervalMinutes.toLong(), TimeUnit.MINUTES
-                ).build()
-
-                workManager.enqueueUniquePeriodicWork(
-                    WORK_NAME,
-                    ExistingPeriodicWorkPolicy.UPDATE,
-                    workRequest
-                )
-
+                // Schedule exact alarm. The AlarmReceiver will fire an Expedited Work Request.
+                // If the OS defers the alarm, the UnlockReceiver will catch up on wake.
                 AlarmScheduler.scheduleNextAlarm(context, intervalMinutes)
             } else {
                 // -1 = Every Unlock (handled by UnlockReceiver)

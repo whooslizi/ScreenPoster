@@ -13,5 +13,6 @@ data class SettingsEntity(
     val randomMode: Boolean = false,
     val sequentialMode: Boolean = true,
     val noRepeatShuffle: Boolean = false,
-    val homeScreenBlurPercent: Int = 0 // 0-100, blur applied to home screen wallpaper
+    val homeScreenBlurPercent: Int = 0, // 0-100, blur applied to home screen wallpaper
+    val lastChangeTimeMillis: Long = 0L // Tracks the last time the wallpaper was changed
 )

@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import dev.whooslizi.screenposter.data.repository.WallpaperRepository
 import dev.whooslizi.screenposter.util.AlarmScheduler
-import dev.whooslizi.screenposter.util.WallpaperHelper
+import dev.whooslizi.screenposter.worker.WallpaperWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,53 +17,35 @@ class UnlockReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var repository: WallpaperRepository
-    
-    @Inject
-    lateinit var wallpaperHelper: WallpaperHelper
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             Intent.ACTION_USER_PRESENT -> {
-                // Change wallpaper on every unlock if configured
                 CoroutineScope(Dispatchers.IO).launch {
                     val settings = repository.getSettings()
-                    // -1 implies Every Unlock
+                    
                     if (settings.intervalMinutes == -1) {
-                        val nextWallpaper = repository.getNextWallpaper()
-                        if (nextWallpaper != null) {
-                            val uriStr = nextWallpaper.editedUri ?: nextWallpaper.uri
-                            wallpaperHelper.setWallpaper(
-                                uriStr,
-                                WallpaperHelper.TARGET_BOTH,
-                                settings.homeScreenBlurPercent
-                            )
-                            repository.addHistory(nextWallpaper.id)
+                        // "Every Unlock" mode
+                        WallpaperWorker.enqueueExpedited(context)
+                    } else if (settings.intervalMinutes > 0) {
+                        // "Timed" mode — check if we missed the alarm due to Doze/OEM killing
+                        val elapsed = System.currentTimeMillis() - settings.lastChangeTimeMillis
+                        if (elapsed >= settings.intervalMinutes * 60_000L) {
+                            // It's past due! Change it now upon waking the device.
+                            WallpaperWorker.enqueueExpedited(context)
                         }
                     }
                 }
             }
             Intent.ACTION_BOOT_COMPLETED -> {
-                // Reschedule alarm after device reboot
                 CoroutineScope(Dispatchers.IO).launch {
                     val settings = repository.getSettings()
-                    when {
-                        settings.intervalMinutes > 0 -> {
-                            // Re-schedule the exact alarm for timed wallpaper changes
-                            AlarmScheduler.scheduleNextAlarm(context, settings.intervalMinutes)
-                        }
-                        settings.intervalMinutes == -2 -> {
-                            // "On Device Boot" mode: change wallpaper now
-                            val nextWallpaper = repository.getNextWallpaper()
-                            if (nextWallpaper != null) {
-                                val uriStr = nextWallpaper.editedUri ?: nextWallpaper.uri
-                                wallpaperHelper.setWallpaper(
-                                    uriStr,
-                                    WallpaperHelper.TARGET_BOTH,
-                                    settings.homeScreenBlurPercent
-                                )
-                                repository.addHistory(nextWallpaper.id)
-                            }
-                        }
+                    if (settings.intervalMinutes > 0) {
+                        // Reschedule the exact alarm after reboot
+                        AlarmScheduler.scheduleNextAlarm(context, settings.intervalMinutes)
+                    } else if (settings.intervalMinutes == -2) {
+                        // "On Device Boot" mode
+                        WallpaperWorker.enqueueExpedited(context)
                     }
                 }
             }
